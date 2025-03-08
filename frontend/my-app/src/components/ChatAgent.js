@@ -99,6 +99,10 @@ const ChatAgent = () => {
     setStreamingMessage('');
     setInput('');
     
+    // 在新对话开始时重置工具调用和结果
+    setCurrentToolCall(null);
+    setCurrentToolResult(null);
+    
     // 关闭之前的连接
     if (eventSourceRef.current) {
         console.log("关闭现有SSE连接");
@@ -193,39 +197,87 @@ const ChatAgent = () => {
     }
 };
 
-// 添加新的消息处理函数
-const handleStreamMessage = (data) => {
+// 修改消息处理函数
+const handleStreamMessage = React.useCallback((data) => {
     console.log("处理流消息:", data);
     switch (data.type) {
+        case 'session_id':
+            console.log("收到会话ID:", data.sessionId);
+            break;
+            
         case 'content':
-            setStreamingMessage(prev => prev + data.content);
+            setStreamingMessage(prev => {
+                const newMessage = prev + data.content;
+                streamingMessageRef.current = newMessage;
+                return newMessage;
+            });
             break;
+            
         case 'tool_call':
-            setCurrentToolCall(data);
-            addDebugLog('tool-call', data);
+            console.log("工具调用:", data);
+            setCurrentToolCall(prev => {
+                addDebugLog('tool-call', data);
+                return data;
+            });
             break;
+            
         case 'tool_result':
-            setCurrentToolResult(data);
-            addDebugLog('tool-result', data);
+            console.log("工具结果:", data);
+            setCurrentToolResult(prev => {
+                addDebugLog('tool-result', data);
+                return data;
+            });
             break;
+            
+        case 'error':
+            console.error("流错误:", data.content);
+            setMessages(prev => [...prev, {
+                type: 'error',
+                content: data.content
+            }]);
+            break;
+            
         case 'done':
+            console.log("对话完成");
             setLoading(false);
-            if (streamingMessageRef.current) {
-                setMessages(prev => [...prev, { 
-                    type: 'ai', 
-                    content: streamingMessageRef.current 
-                }]);
-                setStreamingMessage('');
-            }
+            
+            // 使用函数式更新确保状态更新的顺序性
+            setMessages(prev => {
+                const newMessages = [...prev];
+                if (streamingMessageRef.current) {
+                    newMessages.push({ 
+                        type: 'ai', 
+                        content: streamingMessageRef.current 
+                    });
+                } else {
+                    newMessages.push({ 
+                        type: 'ai', 
+                        content: "抱歉，我无法处理您的请求。请稍后再试。" 
+                    });
+                }
+                return newMessages;
+            });
+            
+            // 关闭连接
             if (eventSourceRef.current) {
                 eventSourceRef.current.close();
                 eventSourceRef.current = null;
             }
+            
+            // 重置状态 - 只重置流式消息，保留工具调用和结果
+            setTimeout(() => {
+                setStreamingMessage('');
+                streamingMessageRef.current = '';
+                // 不再重置工具调用和结果
+                // setCurrentToolCall(null);
+                // setCurrentToolResult(null);
+            }, 100);
             break;
+            
         default:
             console.log("未知消息类型:", data);
     }
-};
+}, [addDebugLog]);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -234,9 +286,64 @@ const handleStreamMessage = (data) => {
     }
   };
 
-  // 简化的 Markdown 渲染函数
+  // 修改 renderReactContent 函数，增强表格处理能力
   const renderReactContent = (content) => {
-    return <ReactMarkdown>{content}</ReactMarkdown>;
+    if (!content) return null;
+    
+    // 尝试修复表格格式问题
+    let fixedContent = content;
+    
+    // 检测表格行并确保它们有正确的格式
+    const tableRowRegex = /\|(.+)\|/g;
+    const tableLines = content.split('\n');
+    let hasTable = false;
+    let tableStartIndex = -1;
+    
+    // 检测表格并添加分隔行
+    for (let i = 0; i < tableLines.length; i++) {
+      if (tableLines[i].trim().match(/\|(.+)\|/) && !hasTable) {
+        hasTable = true;
+        tableStartIndex = i;
+        
+        // 检查下一行是否为分隔行
+        const nextLine = i + 1 < tableLines.length ? tableLines[i + 1] : '';
+        if (!nextLine.includes('---') && !nextLine.includes('===')) {
+          // 计算列数
+          const columns = tableLines[i].split('|').filter(cell => cell.trim()).length;
+          let separatorLine = '|';
+          for (let j = 0; j < columns; j++) {
+            separatorLine += ' --- |';
+          }
+          // 插入分隔行
+          tableLines.splice(i + 1, 0, separatorLine);
+          i++; // 跳过新插入的行
+        }
+      }
+    }
+    
+    if (hasTable) {
+      fixedContent = tableLines.join('\n');
+    }
+    
+    return (
+      <ReactMarkdown
+        components={{
+          // 自定义表格组件渲染
+          table: ({node, ...props}) => (
+            <div className="table-container">
+              <table className="markdown-table" {...props} />
+            </div>
+          ),
+          thead: ({node, ...props}) => <thead {...props} />,
+          tbody: ({node, ...props}) => <tbody {...props} />,
+          tr: ({node, ...props}) => <tr {...props} />,
+          th: ({node, ...props}) => <th className="markdown-th" {...props} />,
+          td: ({node, ...props}) => <td className="markdown-td" {...props} />
+        }}
+      >
+        {fixedContent}
+      </ReactMarkdown>
+    );
   };
 
   // 修改工具结果格式化函数，确保数据更清晰
@@ -280,6 +387,39 @@ const handleStreamMessage = (data) => {
                     ))}
                   </tbody>
                 </table>
+                <div className="raw-data">
+                  <details>
+                    <summary>原始数据</summary>
+                    <pre>{JSON.stringify(result.result, null, 2)}</pre>
+                  </details>
+                </div>
+              </div>
+            );
+          }
+          return <pre>{JSON.stringify(result.result, null, 2)}</pre>;
+          
+        case 'apply_leave':
+          // 请假申请结果格式化
+          if (result.result.status === "success") {
+            return (
+              <div className="leave-application-result tool-result">
+                <h3>请假申请</h3>
+                <div className="leave-details">
+                  <p><strong>开始日期:</strong> {result.result.start_date}</p>
+                  <p><strong>请假时长:</strong> {result.result.hours} 小时</p>
+                  <p><strong>状态:</strong> <span className="success-status">已创建</span></p>
+                  <div className="application-link">
+                    <p>你可以点击以下链接进行请假申请:</p>
+                    <a 
+                      href={result.result.application_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="leave-link"
+                    >
+                      前往请假系统
+                    </a>
+                  </div>
+                </div>
                 <div className="raw-data">
                   <details>
                     <summary>原始数据</summary>

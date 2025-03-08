@@ -53,6 +53,8 @@
     align-self: flex-start;
     background-color: white;
     color: #333;
+    max-width: 90%;
+    width: auto;
   }
   
   .streaming-message {
@@ -343,21 +345,34 @@
     font-weight: 600;
   }
   
-  .markdown-table {
-    border-collapse: collapse;
-    margin: 1rem 0;
+  .table-container {
     width: 100%;
+    overflow-x: auto;
+    margin: 16px 0;
   }
   
-  .markdown-th, .markdown-td {
+  .markdown-table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0;
+    font-size: 14px;
+  }
+  
+  .markdown-th,
+  .markdown-td {
     border: 1px solid #ddd;
     padding: 8px;
     text-align: left;
+    min-width: 100px;
   }
   
   .markdown-th {
-    background-color: #f6f8fa;
-    font-weight: 600;
+    background-color: #f2f2f2;
+    font-weight: bold;
+  }
+  
+  .markdown-table tr:nth-child(even) {
+    background-color: #f9f9f9;
   }
   
   .ai-message p {
@@ -531,6 +546,7 @@
     transform: translateX(100%);
     transition: transform 0.3s ease;
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
   }
   
   .debug-panel.visible {
@@ -556,14 +572,13 @@
     display: flex;
     flex-direction: column;
     gap: 15px;
-    max-height: calc(100vh - 60px); /* 减去头部高度 */
-    scrollbar-width: thin; /* Firefox */
-    scrollbar-color: #d0d0d0 #f5f5f5; /* Firefox */
+    max-height: calc(100vh - 60px);
+    scrollbar-width: thin;
+    scrollbar-color: #d0d0d0 #f5f5f5;
   }
   
-  /* Webkit浏览器的滚动条样式 */
   .tool-activities-container::-webkit-scrollbar {
-    width: 8px;
+    width: 10px;
   }
   
   .tool-activities-container::-webkit-scrollbar-track {
@@ -572,13 +587,13 @@
   }
   
   .tool-activities-container::-webkit-scrollbar-thumb {
-    background-color: #d0d0d0;
+    background-color: #b0b0b0;
     border-radius: 4px;
     border: 2px solid #f5f5f5;
   }
   
   .tool-activities-container::-webkit-scrollbar-thumb:hover {
-    background-color: #a0a0a0;
+    background-color: #909090;
   }
   
   .current-tool-section {
@@ -625,12 +640,12 @@
     word-break: break-word;
     background-color: #fafafa;
     text-align: left;
-    scrollbar-width: thin; /* Firefox */
-    scrollbar-color: #d0d0d0 #fafafa; /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #d0d0d0 #fafafa;
   }
   
   .debug-content::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
   }
   
   .debug-content::-webkit-scrollbar-track {
@@ -639,12 +654,12 @@
   }
   
   .debug-content::-webkit-scrollbar-thumb {
-    background-color: #d0d0d0;
+    background-color: #b0b0b0;
     border-radius: 3px;
   }
   
   .debug-content::-webkit-scrollbar-thumb:hover {
-    background-color: #a0a0a0;
+    background-color: #909090;
   }
   
   .no-tool-activity {
@@ -692,19 +707,16 @@
       top: auto;
       bottom: 0;
       transform: translateY(100%);
+      border-top: 1px solid #ddd;
+      border-left: none;
     }
     
     .debug-panel.visible {
       transform: translateY(0);
     }
     
-    .current-tool-section {
-      max-height: 50%;
-    }
-    
-    .app-container.with-debug .scroll-button {
-      right: 20px;
-      bottom: calc(40vh + 20px);
+    .tool-activities-container {
+      max-height: calc(40vh - 60px);
     }
   }
   
@@ -727,6 +739,14 @@
     .app-container.with-debug .scroll-button {
       bottom: calc(50vh + 20px);
     }
+    
+    .table-container {
+      max-width: 100%;
+    }
+    
+    .ai-message {
+      max-width: 95%;
+    }
   }
   
   .current-tool {
@@ -748,8 +768,9 @@
   }
   
   .current-tool .debug-content {
-    padding: 15px;
     max-height: none;
+    overflow-y: auto;
+    max-height: 400px;
   }
   
   /* 辅助样式 */
@@ -797,28 +818,12 @@
     border-color: #ff4d4f;
   }
   
-  /* 调整滚动按钮在调试面板打开时的位置 */
-  .app-container.with-debug .scroll-button {
-    right: calc(40% + 30px);
-  }
-  
-  /* 响应式调整 */
-  @media (max-width: 1200px) {
-    .app-container.with-debug .scroll-button {
-      right: 20px;
-      bottom: calc(40vh + 20px);
-    }
-  }
-  
-  @media (max-width: 768px) {
-    .app-container.with-debug .scroll-button {
-      bottom: calc(50vh + 20px);
-    }
-  }
-  
   /* 确保消息内容左对齐 */
   .message-content {
     text-align: left;
+    width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
   
   /* 确保工具结果表格有合适的样式 */
@@ -842,5 +847,138 @@
   
   .tool-result tr:nth-child(even) {
     background-color: #fafafa;
+  }
+  
+  /* 确保思考和最终答案部分正确显示 */
+  .ai-message strong {
+    display: inline-block;
+    margin-top: 10px;
+    margin-bottom: 5px;
+  }
+  
+  /* 确保流式消息正确显示 */
+  .streaming-message {
+    border-left: 3px solid #2196f3;
+    background-color: #f5f5f5;
+    padding: 10px;
+    margin-top: 10px;
+    white-space: pre-wrap;
+  }
+  
+  /* 确保调试面板中的表格正确显示 */
+  .debug-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 12px;
+  }
+  
+  .debug-content th,
+  .debug-content td {
+    border: 1px solid #e8e8e8;
+    padding: 6px;
+    text-align: left;
+  }
+  
+  .debug-content th {
+    background-color: #f5f5f5;
+    font-weight: 500;
+  }
+  
+  /* 确保预格式化文本不会溢出 */
+  .debug-content pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+    max-width: 100%;
+    margin: 0;
+    padding: 8px;
+    background-color: #f8f8f8;
+    border-radius: 4px;
+    border: 1px solid #eaeaea;
+    font-family: monospace;
+  }
+  
+  /* 优化Markdown表格显示 */
+  .ai-message table {
+    display: table;
+    width: 100%;
+    overflow-x: visible;
+  }
+  
+  .ai-message th,
+  .ai-message td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+  }
+  
+  .ai-message th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+  }
+  
+  .ai-message tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+  
+  /* 确保表格前后有足够的空间 */
+  .ai-message table {
+    margin-top: 16px;
+    margin-bottom: 16px;
+  }
+  
+  /* 修复工具调用面板在移动设备上的显示问题 */
+  @media (max-width: 1200px) {
+    .tool-activities-container {
+      max-height: calc(40vh - 60px);
+    }
+    
+    .current-tool .debug-content {
+      max-height: 200px;
+    }
+  }
+  
+  /* 请假申请结果样式 */
+  .leave-application-result {
+    background-color: #f0f9ff;
+    border-left: 4px solid #1677ff;
+  }
+  
+  .leave-details {
+    margin: 10px 0;
+  }
+  
+  .leave-details p {
+    margin: 5px 0;
+  }
+  
+  .success-status {
+    color: #52c41a;
+    font-weight: 500;
+  }
+  
+  .application-link {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #f6ffed;
+    border: 1px solid #b7eb8f;
+    border-radius: 4px;
+  }
+  
+  .leave-link {
+    display: inline-block;
+    margin-top: 5px;
+    padding: 8px 16px;
+    background-color: #1677ff;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+  
+  .leave-link:hover {
+    background-color: #4096ff;
   }
   
